@@ -70,6 +70,8 @@ export default function Home() {
 	// handle selections and parameters change
 	useEffect(() => {
 		if (fullData && selectedYear) {
+			// only selected continents
+			const continents = selectedContinents.filter((d) => d.active).map((d) => d.label);
 			// countries and population in selected year
 			let dataset = rollups(
 				fullData.datasets[0],
@@ -93,18 +95,25 @@ export default function Home() {
 				if (gdpRecord) datum.gdp = gdpRecord["GDP per capita"];
 				return datum;
 			});
-			// remove countries with missing values
-			dataset = dataset.filter((d) => d.lifeExpectancy && d.gdp);
+			// remove countries with missing values or not in selectedContinents
+			dataset = dataset.filter((d) => d.lifeExpectancy && d.gdp && continents.indexOf(d.continent) > -1);
 			// sort data to have smaller elements in the foreground
 			dataset = dataset.sort((a, b) => b["Population (historical estimates)"] - a["Population (historical estimates)"]);
 
 			const extents = {
 				...fullData.extents,
-				continents: selectedContinents.filter((d) => d.active).map((d) => d.label),
+				continents,
 			};
-			setData({ dataset, histories: fullData.histories, extents: { ...fullData.extents } });
+			setData({ dataset, histories: fullData.histories, extents: { ...extents } });
 		}
 	}, [fullData, selectedYear, selectedContinents]);
+
+	const handleContinentsSelection = (selection) => {
+		selection.active = !selection.active;
+		const _selectedContinents = [...selectedContinents];
+		_selectedContinents.find((c) => c.label === selection.label).active = selection.active;
+		setSelectedContinents(_selectedContinents);
+	};
 
 	return (
 		<>
@@ -149,13 +158,20 @@ export default function Home() {
 										id={`continent-${d.label}`}
 										label={`${d.label}`}
 										defaultChecked={d.active}
-										onChange={()=>console.log(d.label)}
+										onChange={() => handleContinentsSelection(d)}
 									/>
 								))}
 							</Col>
 						</Row>
 						<Row>
 							<Col>
+								<h4>Roadmap</h4>
+								<ul className="mb-5">
+									<li>Update scales domains after filtering</li>
+									<li>improve recognition of selected items</li>
+									<li>Filter on X an Y scales</li>
+									<li>Change typography</li>
+								</ul>
 								<h4>Data sources</h4>
 								<ul className="mb-5">
 									{sources.map((source) => (

@@ -3,7 +3,6 @@ import {
 	axisBottom,
 	line,
 	rollups,
-	select,
 	scaleLinear,
 	scaleSqrt,
 	scaleOrdinal,
@@ -14,7 +13,15 @@ import {
 const x = scaleLinear().clamp(true),
 	y = scaleLinear().clamp(true),
 	r = scaleSqrt(),
-	fillColor = scaleOrdinal();
+	fillColor = {
+		Asia: "#66c2a5",
+		Europe: "#fc8d62",
+		Africa: "#8da0cb",
+		Oceania: "#e78ac3",
+		"North America": "#a6d854",
+		Antarctica: "#ffd92f",
+		"South America": "#e5c494",
+	};
 let svg, bubble, stroke, label, historyLineBg, historyLine, year, legend;
 let width,
 	height,
@@ -45,13 +52,11 @@ export function init(selection) {
 
 export function update(data, selectedEntities, setSelectedEntities) {
 	const selectedHistories = data.histories.filter((d) => selectedEntities.indexOf(d[0]) > -1);
-	console.log("update", data, selectedHistories);
+	console.log("update", data);
+
 	x.domain(data.extents.gdpExtent).range([margin.left, width - margin.right]);
 	y.domain(data.extents.lifeExtent).range([height - margin.bottom, margin.top]);
 	r.domain([0, data.extents.populationExtent[1]]).range([3, m]);
-	fillColor
-		.domain(data.extents.continents)
-		.range(["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"]);
 	svg
 		.select(".xAxis")
 		.attr("transform", `translate(0,${height - margin.bottom})`)
@@ -128,7 +133,7 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					.attr("stroke-width", 1.5)
 					.attr("stroke", (d) => {
 						const entity = data.dataset.find((dd) => dd["Entity"] === d[0]);
-						return color(fillColor(entity.continent)).brighter(0.25);
+						return color(fillColor[entity.continent]).brighter(0.25);
 					}),
 			(update) => update.attr("d", (d) => valueline(d[1])),
 			(exit) => exit.remove()
@@ -158,7 +163,7 @@ export function update(data, selectedEntities, setSelectedEntities) {
 		.join("circle")
 		.attr("cx", (d) => x(d.gdp))
 		.attr("cy", (d) => y(d.lifeExpectancy))
-		.attr("fill", (d) => fillColor(d.continent))
+		.attr("fill", (d) => fillColor[d.continent])
 		.attr("r", 2);
 
 	bubble = bubble
@@ -177,12 +182,12 @@ export function update(data, selectedEntities, setSelectedEntities) {
 						if (selectedEntities.length > 0) {
 							const index = selectedEntities.indexOf(d["Entity"]);
 							if (index > -1) {
-								return fillColor(d.continent);
+								return fillColor[d.continent];
 							} else {
 								return "transparent";
 							}
 						} else {
-							return fillColor(d.continent);
+							return fillColor[d.continent];
 						}
 					})
 					.on("mouseover", (event, d) => {
@@ -202,12 +207,12 @@ export function update(data, selectedEntities, setSelectedEntities) {
 						if (selectedEntities.length > 0) {
 							const index = selectedEntities.indexOf(d["Entity"]);
 							if (index > -1) {
-								return fillColor(d.continent);
+								return fillColor[d.continent];
 							} else {
 								return "transparent";
 							}
 						} else {
-							return fillColor(d.continent);
+							return fillColor[d.continent];
 						}
 					})
 					.on("mouseover", (event, d) => {
@@ -237,7 +242,7 @@ export function update(data, selectedEntities, setSelectedEntities) {
 							if (index > -1) {
 								return "white";
 							} else {
-								return fillColor(d.continent);
+								return fillColor[d.continent];
 							}
 						} else {
 							return "white";
@@ -256,7 +261,7 @@ export function update(data, selectedEntities, setSelectedEntities) {
 							if (index > -1) {
 								return "white";
 							} else {
-								return fillColor(d.continent);
+								return fillColor[d.continent];
 							}
 						} else {
 							return "white";
@@ -319,7 +324,6 @@ function handleClick(d, selected, setSelected) {
 }
 
 function drawLegend(selection, data) {
-	console.log(data);
 	const f = format(".2s");
 	const gutter = 25;
 
@@ -373,7 +377,7 @@ function drawLegend(selection, data) {
 		.append("rect")
 		.attr("width", 10)
 		.attr("height", 10)
-		.attr("fill", (d) => fillColor(d));
+		.attr("fill", (d) => fillColor[d]);
 
 	continent
 		.append("text")
@@ -394,7 +398,7 @@ function drawLegend(selection, data) {
 		.attr("stroke", "#333")
 		.attr("stroke-width", "2")
 		.attr("stroke-dasharray", "1 3")
-		.attr("transform", `translate(${areasBBox.width + gutter + continentsBBox.width + gutter}, ${0.5*gutter})`);
+		.attr("transform", `translate(${areasBBox.width + gutter + continentsBBox.width + gutter}, ${0.5 * gutter})`);
 
 	selection
 		.append("text")
@@ -406,7 +410,7 @@ function drawLegend(selection, data) {
 	selection
 		.append("text")
 		.attr("font-size", 12)
-		.attr("y", continentsBBox.height + 1.5 * gutter)
+		.attr("y", areasBBox.height + 1.5 * gutter)
 		.text("Year by year, elements appear according to availability of data.");
 
 	const legendBBox = selection.node().getBBox();
@@ -416,34 +420,4 @@ function drawLegend(selection, data) {
 	);
 
 	legend;
-}
-
-function wrap(text, width) {
-	text.each(function () {
-		var text = select(this),
-			words = text.text().split(/\s+/).reverse(),
-			word,
-			line = [],
-			lineNumber = 0,
-			x = Number(text.attr("x")),
-			y = text.attr("y"),
-			dy = 12,
-			tspan = text.text(null).append("tspan").attr("y", y).attr("dy", dy);
-
-		while ((word = words.pop())) {
-			line.push(word);
-			tspan.text(line.join(" "));
-			if (tspan.node().getComputedTextLength() > width) {
-				console.log(lineNumber, dy);
-				line.pop();
-				tspan.text(line.join(" "));
-				line = [word];
-				tspan = text
-					.append("tspan")
-					.attr("x", x)
-					.attr("dy", ++lineNumber + dy)
-					.text(word);
-			}
-		}
-	});
 }

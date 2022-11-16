@@ -17,9 +17,6 @@ export default function BubbleChart({ data, selectedYear, selectedEntities, setS
 			<g className="yAxis"/>
 			<g className="bubbles"/>
 			<g className="legend"/>
-			{/* <text x="50%" y="50%" textAnchor="middle">
-				{selectedYear}
-			</text> */}
 		</svg>
 	);
 }
