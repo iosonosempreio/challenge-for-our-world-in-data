@@ -1,209 +1,98 @@
-import Head from 'next/head'
-
+import Head from "next/head";
+import { useEffect, useState } from "react";
+import { Container, Row, Col } from "react-bootstrap";
+import BubbleChart from "../components/BubbleChart/BubbleChart";
+import { useRouter } from "next/router";
+import { csv, autoType, extent, max, min, groups, rollups } from "d3";
+import RangeInput from "../components/RangeInput/RangeInput";
 export default function Home() {
-  return (
-    <div className="container">
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+	const { basePath } = useRouter();
+	const [fullData, setFullData] = useState();
+	const [data, setData] = useState();
+	const [selectedYear, setSelectedYear] = useState();
+	useEffect(() => {
+		const requests = [
+			csv(basePath + "/data/population.csv", autoType),
+			csv(basePath + "/data/life-expectancy.csv", autoType),
+			csv(basePath + "/data/gdp-per-capita-maddison-2020.csv", autoType),
+			csv(basePath + "/data/continents-according-to-our-world-in-data.csv", autoType),
+		];
+		Promise.all(requests).then((results) => {
+			// calculate YEARS extents
+			const yearsExtents = results.map((dataset) => extent(dataset, (d) => d["Year"]));
+			// const timeExtent = [max(yearsExtents.map((d) => d[0])), min(yearsExtents.map((d) => d[1]))];
+			const timeExtent = [1810, 2018]; // Hans Rosling's values
+			const populationExtent = extent(results[0], (d) => d["Population (historical estimates)"]);
+			// const lifeExtent = extent(results[1], (d) => d["Life expectancy"]);
+			const lifeExtent = [35, 90]; // similar to Hans Rosling's values
+			const continents = groups(results[3], (d) => d["Continent"]).map((d) => d[0]);
+			// const gdpExtent = extent(results[2], (d) => d["GDP per capita"]);
+			const gdpExtent = [0, 80000]; // similar to Hans Rosling's values
+			// relevant data
+			const datasets = results.map((dataset) =>
+				dataset.filter((d) => d["Code"] !== "OWID_WRL" && d["Year"] >= timeExtent[0] && d["Year"] <= timeExtent[1])
+			);
+			setFullData({ datasets, extents: { populationExtent, timeExtent, lifeExtent, gdpExtent, continents } });
+			setSelectedYear(timeExtent[0]);
+		});
+	}, []);
 
-      <main>
-        <h1 className="title">
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+	useEffect(() => {
+		if (fullData && selectedYear) {
+			// countries and population in selected year
+			let dataset = rollups(
+				fullData.datasets[0],
+				(v) => v.find((vv) => vv["Year"] == selectedYear),
+				(d) => d["Entity"]
+			);
+			// remove countries with no population for current year
+			dataset = dataset.filter((d) => d[1]);
+			// appen data of life expectation, gdp, and country continent
+			dataset = dataset.map((d) => {
+				const datum = d[1];
+				const continentRecord = fullData.datasets[3].find((record) => record["Entity"] === datum["Entity"]);
+				if (continentRecord) datum.continent = continentRecord["Continent"];
+				const lifeExpectancyRecord = fullData.datasets[1].find(
+					(record) => record["Entity"] === datum["Entity"] && record["Year"] == selectedYear
+				);
+				if (lifeExpectancyRecord) datum.lifeExpectancy = lifeExpectancyRecord["Life expectancy"];
+				const gdpRecord = fullData.datasets[2].find(
+					(record) => record["Entity"] === datum["Entity"] && record["Year"] == selectedYear
+				);
+				if (gdpRecord) datum.gdp = gdpRecord["GDP per capita"];
+				return datum;
+			});
+			// remove countries with missing values
+			dataset = dataset.filter((d) => d.lifeExpectancy && d.gdp);
+			dataset = dataset.sort((a, b) => b["Population (historical estimates)"] - a["Population (historical estimates)"]);
+			setData({ dataset, extents: { ...fullData.extents } });
+		}
+	}, [fullData, selectedYear]);
 
-        <p className="description">
-          Get started by editing <code>pages/index.js</code>
-        </p>
-
-        <div className="grid">
-          <a href="https://nextjs.org/docs" className="card">
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className="card">
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className="card"
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className="card"
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel" className="logo" />
-        </a>
-      </footer>
-
-      <style jsx>{`
-        .container {
-          min-height: 100vh;
-          padding: 0 0.5rem;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-        }
-
-        main {
-          padding: 5rem 0;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-        }
-
-        footer {
-          width: 100%;
-          height: 100px;
-          border-top: 1px solid #eaeaea;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        footer img {
-          margin-left: 0.5rem;
-        }
-
-        footer a {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        a {
-          color: inherit;
-          text-decoration: none;
-        }
-
-        .title a {
-          color: #0070f3;
-          text-decoration: none;
-        }
-
-        .title a:hover,
-        .title a:focus,
-        .title a:active {
-          text-decoration: underline;
-        }
-
-        .title {
-          margin: 0;
-          line-height: 1.15;
-          font-size: 4rem;
-        }
-
-        .title,
-        .description {
-          text-align: center;
-        }
-
-        .description {
-          line-height: 1.5;
-          font-size: 1.5rem;
-        }
-
-        code {
-          background: #fafafa;
-          border-radius: 5px;
-          padding: 0.75rem;
-          font-size: 1.1rem;
-          font-family: Menlo, Monaco, Lucida Console, Liberation Mono,
-            DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace;
-        }
-
-        .grid {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-wrap: wrap;
-
-          max-width: 800px;
-          margin-top: 3rem;
-        }
-
-        .card {
-          margin: 1rem;
-          flex-basis: 45%;
-          padding: 1.5rem;
-          text-align: left;
-          color: inherit;
-          text-decoration: none;
-          border: 1px solid #eaeaea;
-          border-radius: 10px;
-          transition: color 0.15s ease, border-color 0.15s ease;
-        }
-
-        .card:hover,
-        .card:focus,
-        .card:active {
-          color: #0070f3;
-          border-color: #0070f3;
-        }
-
-        .card h3 {
-          margin: 0 0 1rem 0;
-          font-size: 1.5rem;
-        }
-
-        .card p {
-          margin: 0;
-          font-size: 1.25rem;
-          line-height: 1.5;
-        }
-
-        .logo {
-          height: 1em;
-        }
-
-        @media (max-width: 600px) {
-          .grid {
-            width: 100%;
-            flex-direction: column;
-          }
-        }
-      `}</style>
-
-      <style jsx global>{`
-        html,
-        body {
-          padding: 0;
-          margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
-            Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,
-            sans-serif;
-        }
-
-        * {
-          box-sizing: border-box;
-        }
-      `}</style>
-    </div>
-  )
+	return (
+		<>
+			<Head>
+				<title>Human progress | Interactive bubble chart</title>
+			</Head>
+			<Container>
+				<Row>
+					<Col>
+						<h1>Interactive bubble chart of human progress</h1>
+					</Col>
+				</Row>
+				{data && (
+					<>
+						<Row>
+							<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
+						</Row>
+						<Row>
+							<Col style={{ height: "70vh" }}>
+								<BubbleChart data={data} selectedYear={selectedYear} />
+							</Col>
+						</Row>
+					</>
+				)}
+			</Container>
+		</>
+	);
 }

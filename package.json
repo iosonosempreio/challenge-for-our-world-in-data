@@ -1,13 +1,18 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "open http://localhost:3000/challenge-our-world-in-data & next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "bootstrap": "^5.2.2",
+    "classnames": "^2.3.2",
+    "d3": "^7.6.1",
     "next": "latest",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-bootstrap": "^2.6.0",
+    "react-dom": "18.2.0",
+    "sass": "^1.56.1"
   }
 }

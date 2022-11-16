@@ -1,0 +1,29 @@
+@import "~bootstrap/scss/functions";
+@import "~bootstrap/scss/variables";
+@import "~bootstrap/scss/mixins";
+
+$theme-colors: (
+  "primary":			$primary,
+  "secondary":		$secondary,
+  "success":			$success,
+  "info":					$info,
+  "warning":			$warning,
+  "danger":				$danger,
+  "light":				$light,
+  "dark":					$dark,
+  // "blue-jeans":		#0978ab,
+  // "lightBlue":		#9ae5fc,
+  // "terrain":			#ece5e0,
+  // "terrain-dark":	#f1e2d6,
+  // "white":				#ffffff,
+  // "onWIki":				#c3c5c3,
+  // "inContest":		#f8ff0e,
+  // "photographed":	#22b8b4,
+  // "interactive":	#ff004d,
+  // "light-gray":		#f1f5f1,
+  // "dark-gray":		#808080,
+);
+
+// $font-size-base: 14px;
+
+@import "~bootstrap/scss/bootstrap.scss";
