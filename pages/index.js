@@ -1,15 +1,22 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
-import { Container, Row, Col } from "react-bootstrap";
+import { Container, Row, Col, Form } from "react-bootstrap";
 import BubbleChart from "../components/BubbleChart/BubbleChart";
 import { useRouter } from "next/router";
 import { csv, autoType, extent, max, min, groups, rollups } from "d3";
 import RangeInput from "../components/RangeInput/RangeInput";
+import classNames from "classnames";
+import sources from "../public/data/sources.json";
+import { BsHandIndexThumb } from "react-icons/bs";
 export default function Home() {
 	const { basePath } = useRouter();
 	const [fullData, setFullData] = useState();
 	const [data, setData] = useState();
+	const [selectedContinents, setSelectedContinents] = useState();
 	const [selectedYear, setSelectedYear] = useState();
+	const [selectedEntities, setSelectedEntities] = useState([]);
+
+	// Load data ant initialize states
 	useEffect(() => {
 		const requests = [
 			csv(basePath + "/data/population.csv", autoType),
@@ -18,44 +25,49 @@ export default function Home() {
 			csv(basePath + "/data/continents-according-to-our-world-in-data.csv", autoType),
 		];
 		Promise.all(requests).then((results) => {
-			// calculate extents
-			const continents = groups(results[3], (d) => d["Continent"]).map((d) => d[0]);
-			const populationExtent = extent(results[0], (d) => d["Population (historical estimates)"]);
-
-			// const yearsExtents = results.slice(0,2).map((dataset) => extent(dataset, (d) => d["Year"]));
-			// const timeExtent = [max(yearsExtents.map((d) => d[0])), min(yearsExtents.map((d) => d[1]))];
-			// const lifeExtent = extent(results[1], (d) => d["Life expectancy"]);
-			// const gdpExtent = extent(results[2], (d) => d["GDP per capita"]);
-			
-			const lifeExtent = [35, 90]; // similar to Hans Rosling's values
-			const gdpExtent = [0, 80000]; // similar to Hans Rosling's values
+			// time extent
 			const timeExtent = [1810, 2018]; // Hans Rosling's values
-
 			// relevant data
 			const datasets = results.map((dataset) =>
-				dataset.filter((d) => d["Code"] !== "OWID_WRL" && d["Year"] >= timeExtent[0] && d["Year"] <= timeExtent[1])
+				dataset.filter(
+					(d) => d["Code"] && d["Code"] !== "OWID_WRL" && d["Year"] >= timeExtent[0] && d["Year"] <= timeExtent[1]
+				)
 			);
+			// other extents
+			const continents = groups(datasets[3], (d) => d["Continent"]).map((d) => d[0]);
+			const populationExtent = extent(datasets[0], (d) => d["Population (historical estimates)"]);
+			const lifeExtent = [35, 90]; // similar to Hans Rosling's values
+			const minGdp = min(datasets[2], (d) => d["GDP per capita"]);
+			const maxGdp = min([max(datasets[2], (d) => d["GDP per capita"]), 80000]);
+			const gdpExtent = [minGdp, maxGdp]; // similar to Hans Rosling's values
 
 			const histories = rollups(
 				datasets[0],
 				(v) => {
 					const life = datasets[1].filter((r) => r["Entity"] === v[0]["Entity"]);
 					const gdp = datasets[2].filter((r) => r["Entity"] === v[0]["Entity"]);
-					return v
-						.map((d) => ({
-							year: d["Year"],
-							lifeExpectancy: life.find((l) => l["Year"] === d["Year"])?.["Life expectancy"],
-							gdp: gdp.find((g) => g["Year"] === d["Year"])?.["GDP per capita"],
-						}))
+					const continent = datasets[3].find((r) => r["Entity"] === v[0]["Entity"])["Continent"];
+					return v.map((d) => ({
+						year: d["Year"],
+						continent,
+						lifeExpectancy: life.find((l) => l["Year"] === d["Year"])?.["Life expectancy"],
+						gdp: gdp.find((g) => g["Year"] === d["Year"])?.["GDP per capita"],
+					}));
 				},
 				(d) => d["Entity"]
 			);
 
-			setFullData({ datasets, histories, extents: { populationExtent, timeExtent, lifeExtent, gdpExtent, continents } });
-			setSelectedYear(timeExtent[0]);
+			setFullData({
+				datasets,
+				histories,
+				extents: { populationExtent, timeExtent, lifeExtent, gdpExtent, continents },
+			});
+			setSelectedYear(timeExtent[1]);
+			setSelectedContinents(continents.map((d) => ({ label: d, active: true })));
 		});
 	}, []);
 
+	// handle selections and parameters change
 	useEffect(() => {
 		if (fullData && selectedYear) {
 			// countries and population in selected year
@@ -83,10 +95,16 @@ export default function Home() {
 			});
 			// remove countries with missing values
 			dataset = dataset.filter((d) => d.lifeExpectancy && d.gdp);
+			// sort data to have smaller elements in the foreground
 			dataset = dataset.sort((a, b) => b["Population (historical estimates)"] - a["Population (historical estimates)"]);
+
+			const extents = {
+				...fullData.extents,
+				continents: selectedContinents.filter((d) => d.active).map((d) => d.label),
+			};
 			setData({ dataset, histories: fullData.histories, extents: { ...fullData.extents } });
 		}
-	}, [fullData, selectedYear]);
+	}, [fullData, selectedYear, selectedContinents]);
 
 	return (
 		<>
@@ -95,20 +113,61 @@ export default function Home() {
 			</Head>
 			<Container>
 				<Row>
-					<Col>
-						<h1>Interactive bubble chart of human progress</h1>
+					<Col className="mb-3">
+						<h1 className={classNames()}>Human progress from 1810 to 2018</h1>
+						<p>
+							Every circle represents a country. <BsHandIndexThumb /> click on them to see historical evolution of their
+							wealth.
+						</p>
 					</Col>
 				</Row>
 				{data && (
 					<>
 						<Row>
-							<Col>
-								<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
+							<Col className="mb-3" style={{ height: "70vh" }}>
+								<BubbleChart
+									data={data}
+									selectedYear={selectedYear}
+									selectedEntities={selectedEntities}
+									setSelectedEntities={setSelectedEntities}
+								/>
 							</Col>
 						</Row>
 						<Row>
-							<Col style={{ height: "70vh" }}>
-								<BubbleChart data={data} selectedYear={selectedYear} />
+							<Col sm="12" className="mb-2">
+								<h4>FIlter continents or select a year</h4>
+							</Col>
+							<Col sm="12" className="mb-3">
+								<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
+							</Col>
+							<Col className="mb-5 d-flex">
+								{selectedContinents.map((d) => (
+									<Form.Check
+										key={d.label}
+										className="me-3"
+										type="checkbox"
+										id={`continent-${d.label}`}
+										label={`${d.label}`}
+										defaultChecked={d.active}
+										onChange={()=>console.log(d.label)}
+									/>
+								))}
+							</Col>
+						</Row>
+						<Row>
+							<Col>
+								<h4>Data sources</h4>
+								<ul className="mb-5">
+									{sources.map((source) => (
+										<li key={source.label}>
+											<h6>{source.label}</h6>
+											<p>
+												{source.description} <a href={source.url}>(link)</a>
+											</p>
+										</li>
+									))}
+								</ul>
+								<p className="fst-italic">Data Visualization Challenge for Our World in Data. November 2022</p>
 							</Col>
 						</Row>
 					</>
