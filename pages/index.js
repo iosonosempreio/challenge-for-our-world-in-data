@@ -47,7 +47,6 @@ export default function Home() {
 							lifeExpectancy: life.find((l) => l["Year"] === d["Year"])?.["Life expectancy"],
 							gdp: gdp.find((g) => g["Year"] === d["Year"])?.["GDP per capita"],
 						}))
-						// .filter((d) => d.lifeExpectancy && d.gdp);
 				},
 				(d) => d["Entity"]
 			);
