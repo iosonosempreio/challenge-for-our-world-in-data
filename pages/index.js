@@ -18,21 +18,41 @@ export default function Home() {
 			csv(basePath + "/data/continents-according-to-our-world-in-data.csv", autoType),
 		];
 		Promise.all(requests).then((results) => {
-			// calculate YEARS extents
-			const yearsExtents = results.map((dataset) => extent(dataset, (d) => d["Year"]));
-			// const timeExtent = [max(yearsExtents.map((d) => d[0])), min(yearsExtents.map((d) => d[1]))];
-			const timeExtent = [1810, 2018]; // Hans Rosling's values
-			const populationExtent = extent(results[0], (d) => d["Population (historical estimates)"]);
-			// const lifeExtent = extent(results[1], (d) => d["Life expectancy"]);
-			const lifeExtent = [35, 90]; // similar to Hans Rosling's values
+			// calculate extents
 			const continents = groups(results[3], (d) => d["Continent"]).map((d) => d[0]);
+			const populationExtent = extent(results[0], (d) => d["Population (historical estimates)"]);
+
+			// const yearsExtents = results.slice(0,2).map((dataset) => extent(dataset, (d) => d["Year"]));
+			// const timeExtent = [max(yearsExtents.map((d) => d[0])), min(yearsExtents.map((d) => d[1]))];
+			// const lifeExtent = extent(results[1], (d) => d["Life expectancy"]);
 			// const gdpExtent = extent(results[2], (d) => d["GDP per capita"]);
+			
+			const lifeExtent = [35, 90]; // similar to Hans Rosling's values
 			const gdpExtent = [0, 80000]; // similar to Hans Rosling's values
+			const timeExtent = [1810, 2018]; // Hans Rosling's values
+
 			// relevant data
 			const datasets = results.map((dataset) =>
 				dataset.filter((d) => d["Code"] !== "OWID_WRL" && d["Year"] >= timeExtent[0] && d["Year"] <= timeExtent[1])
 			);
-			setFullData({ datasets, extents: { populationExtent, timeExtent, lifeExtent, gdpExtent, continents } });
+
+			const histories = rollups(
+				datasets[0],
+				(v) => {
+					const life = datasets[1].filter((r) => r["Entity"] === v[0]["Entity"]);
+					const gdp = datasets[2].filter((r) => r["Entity"] === v[0]["Entity"]);
+					return v
+						.map((d) => ({
+							year: d["Year"],
+							lifeExpectancy: life.find((l) => l["Year"] === d["Year"])?.["Life expectancy"],
+							gdp: gdp.find((g) => g["Year"] === d["Year"])?.["GDP per capita"],
+						}))
+						// .filter((d) => d.lifeExpectancy && d.gdp);
+				},
+				(d) => d["Entity"]
+			);
+
+			setFullData({ datasets, histories, extents: { populationExtent, timeExtent, lifeExtent, gdpExtent, continents } });
 			setSelectedYear(timeExtent[0]);
 		});
 	}, []);
@@ -65,7 +85,7 @@ export default function Home() {
 			// remove countries with missing values
 			dataset = dataset.filter((d) => d.lifeExpectancy && d.gdp);
 			dataset = dataset.sort((a, b) => b["Population (historical estimates)"] - a["Population (historical estimates)"]);
-			setData({ dataset, extents: { ...fullData.extents } });
+			setData({ dataset, histories: fullData.histories, extents: { ...fullData.extents } });
 		}
 	}, [fullData, selectedYear]);
 
@@ -83,7 +103,9 @@ export default function Home() {
 				{data && (
 					<>
 						<Row>
-							<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
+							<Col>
+								<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
+							</Col>
 						</Row>
 						<Row>
 							<Col style={{ height: "70vh" }}>

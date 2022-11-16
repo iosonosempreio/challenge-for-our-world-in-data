@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "open http://localhost:3000/challenge-our-world-in-data & next dev",
+    "dev": "open http://localhost:3000/challenge-for-our-world-in-data & next dev",
     "build": "next build",
     "export": "next build && next export && touch out/.nojekyll",
     "start": "next start"

@@ -1,26 +1,44 @@
-import { axisLeft, axisBottom, rollups, selectAll, scaleLinear, scaleSqrt, scaleOrdinal } from "d3";
+import {
+	axisLeft,
+	axisBottom,
+	line,
+	rollups,
+	selectAll,
+	scaleLinear,
+	scaleSqrt,
+	scaleOrdinal,
+	curveCardinal,
+} from "d3";
 const x = scaleLinear().clamp(true),
 	y = scaleLinear().clamp(true),
 	r = scaleSqrt(),
 	fillColor = scaleOrdinal();
-let svg, bubble, stroke, label;
+let svg, bubble, stroke, label, historyLine;
 let width,
 	height,
 	margin = { top: 50, right: 50, bottom: 50, left: 50 };
+
+const valueline = line()
+	.defined((d) => d.gdp && d.lifeExpectancy)
+	.curve(curveCardinal)
+	.x((d) => x(d.gdp))
+	.y((d) => y(d.lifeExpectancy));
 
 export function init(selection) {
 	console.log("init");
 	svg = selection;
 	const bbox = svg.node().getBoundingClientRect();
-	width = bbox.width - margin.left - margin.right;
-	height = bbox.height - margin.top - margin.bottom;
+	width = bbox.width; // - margin.left - margin.right;
+	height = bbox.height; // - margin.top - margin.bottom;
 	svg.select(".bubbles").selectAll("*").remove();
+	historyLine = svg.select(".bubbles").append("path").attr("class", ".historyLine").attr("fill", "none");
 	bubble = svg.select(".bubbles").selectAll(".bubble");
 	stroke = svg.select(".bubbles").selectAll(".stroke");
 	label = svg.select(".bubbles").selectAll(".label");
 }
 
 export function update(data) {
+	// data.dataset = data.dataset.filter(d=>d["Entity"] === "Afghanistan")
 	// console.log("update");
 	x.domain(data.extents.gdpExtent).range([margin.left, width - margin.right]);
 	y.domain(data.extents.lifeExtent).range([height - margin.bottom, margin.top]);
@@ -46,6 +64,22 @@ export function update(data) {
 					.attr("cx", (d) => x(d.gdp))
 					.attr("cy", (d) => y(d.lifeExpectancy))
 					.attr("fill", (d) => fillColor(d.continent))
+					.on("mouseover", (event, d) => {
+						const history = data.histories.find((dd) => dd[0] === d["Entity"])[1];
+						historyLine
+							.attr("d", valueline(history))
+							.attr("stroke", (dd) => fillColor(d.continent))
+							.style("opacity", 0)
+							.transition()
+							.duration(750)
+							.style("opacity", 1);
+						label.filter((dd) => dd["Entity"] === d["Entity"]).style("display", "block");
+					})
+					.on("mouseleave", (event, d) => {
+						historyLine.attr("d", null).transition().duration(750).style("opacity", 0);
+						label
+							.style("display", (d, i) => (i < 10 ? "block" : "none"));
+					})
 					.call((enter) => enter.transition(t).attr("r", (d) => r(d["Population (historical estimates)"]))),
 			(update) =>
 				update
