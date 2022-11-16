@@ -1,0 +1,20 @@
+[
+	{
+		"label": "Population",
+		"description": "long-run human population over time stitched from multiple sources",
+		"source": "Gapminder (v6); HYDE (v3.2); UN (2022)",
+		"url": "https://ourworldindata.org/grapher/population"
+	},
+  {
+		"label": "Life Expectancy",
+		"description": "Long-runlifeexpectancyovertimemeasuredinyears",
+		"source": "Riley (2005), Clio Infra (2015), and UN Population Division (2019)",
+		"url": "https://ourworldindata.org/grapher/life-expectancy"
+	},
+  {
+		"label": "GDP per capita",
+		"description": "long-run GDP per capita measured in constant 2011 international $",
+		"source": "Maddison Project Database 2020 (Bolt and van Zanden, 2020)",
+		"url": "https://ourworldindata.org/grapher/gdp-per-capita-maddison-2020"
+	}
+]
