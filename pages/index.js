@@ -15,6 +15,7 @@ export default function Home() {
 	const [selectedContinents, setSelectedContinents] = useState();
 	const [selectedYear, setSelectedYear] = useState();
 	const [selectedEntities, setSelectedEntities] = useState([]);
+	const [horizontalScale, setHorizontalScale] = useState("linear");
 
 	// Load data ant initialize states
 	useEffect(() => {
@@ -34,12 +35,12 @@ export default function Home() {
 				)
 			);
 			// other extents
-			const continents = groups(datasets[3], (d) => d["Continent"]).map((d) => d[0]);
+			const continents = groups(datasets[3], (d) => d["Continent"])
+				.map((d) => d[0])
+				.filter((d) => d !== "Antarctica");
 			const populationExtent = extent(datasets[0], (d) => d["Population (historical estimates)"]);
-			const lifeExtent = [35, 90]; // similar to Hans Rosling's values
-			const minGdp = min(datasets[2], (d) => d["GDP per capita"]);
-			const maxGdp = min([max(datasets[2], (d) => d["GDP per capita"]), 80000]);
-			const gdpExtent = [minGdp, maxGdp]; // similar to Hans Rosling's values
+			const lifeExtent = [25, 85]; // similar to Hans Rosling's values
+			const gdpExtent = extent(datasets[2], (d) => d["GDP per capita"]); // similar to Hans Rosling's values
 
 			const histories = rollups(
 				datasets[0],
@@ -67,7 +68,7 @@ export default function Home() {
 		});
 	}, []);
 
-	// handle selections and parameters change
+	// handle selections and parameters changes
 	useEffect(() => {
 		if (fullData && selectedYear) {
 			// only selected continents
@@ -100,13 +101,19 @@ export default function Home() {
 			// sort data to have smaller elements in the foreground
 			dataset = dataset.sort((a, b) => b["Population (historical estimates)"] - a["Population (historical estimates)"]);
 
+			// new GDP extent
+			const availableCountries = dataset.map((d) => d["Entity"]);
+			const filteredGdpData = fullData.datasets[2].filter((d) => availableCountries.indexOf(d["Entity"]) > -1);
+			const newGdpExtent = extent(filteredGdpData, (d) => d["GDP per capita"]); // similar to Hans Rosling's values
+
 			const extents = {
 				...fullData.extents,
+				gdpExtent: newGdpExtent,
 				continents,
 			};
-			setData({ dataset, histories: fullData.histories, extents: { ...extents } });
+			setData({ dataset, histories: fullData.histories, extents: { ...extents }, horizontalScale });
 		}
-	}, [fullData, selectedYear, selectedContinents]);
+	}, [fullData, selectedYear, selectedContinents, horizontalScale]);
 
 	const handleContinentsSelection = (selection) => {
 		selection.active = !selection.active;
@@ -144,12 +151,12 @@ export default function Home() {
 						</Row>
 						<Row>
 							<Col sm="12" className="mb-2">
-								<h4>FIlter continents or select a year</h4>
+								<h4>Filter continents or select a year</h4>
 							</Col>
 							<Col sm="12" className="mb-3">
 								<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
 							</Col>
-							<Col className="mb-5 d-flex">
+							<Col sm="12" className="mb-5 d-flex flex-wrap">
 								{selectedContinents.map((d) => (
 									<Form.Check
 										key={d.label}
@@ -162,15 +169,34 @@ export default function Home() {
 									/>
 								))}
 							</Col>
+							<Col sm="12" className="mb-5 d-flex flex-wrap">
+								<p className="me-3">Horizontal scale: </p>
+								{["linear", "log"].map((d) => (
+									<Form.Check
+										key={d}
+										className="me-3"
+										label={d}
+										name="horizontalScaleRadio"
+										type="radio"
+										id={`x-scale-switch`}
+										defaultChecked={d === horizontalScale}
+										onChange={() => setHorizontalScale(d)}
+									/>
+								))}
+							</Col>
 						</Row>
 						<Row>
 							<Col>
 								<h4>Roadmap</h4>
 								<ul className="mb-5">
-									<li>Update scales domains after filtering</li>
-									<li>improve recognition of selected items</li>
-									<li>Filter on X an Y scales</li>
-									<li>Change typography</li>
+									<li>Animate the visualization year by year (use d3.timer())</li>
+									<li>
+										Semantic zoom to better distinguish elements (explained{" "}
+										<a href="https://observablehq.com/@john-guerra/svg-semantic-zoom">here</a>)
+									</li>
+									<li>Add a searchbox</li>
+									<li>Improve the visual design (select typeface)</li>
+									<li>Improve the visual design (select typeface)</li>
 								</ul>
 								<h4>Data sources</h4>
 								<ul className="mb-5">

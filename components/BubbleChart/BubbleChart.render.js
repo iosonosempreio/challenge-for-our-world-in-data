@@ -4,14 +4,14 @@ import {
 	line,
 	rollups,
 	scaleLinear,
+	scaleLog,
 	scaleSqrt,
 	scaleOrdinal,
 	curveCardinal,
 	color,
 	format,
 } from "d3";
-const x = scaleLinear().clamp(true),
-	y = scaleLinear().clamp(true),
+const y = scaleLinear().clamp(true),
 	r = scaleSqrt(),
 	fillColor = {
 		Asia: "#66c2a5",
@@ -22,7 +22,15 @@ const x = scaleLinear().clamp(true),
 		Antarctica: "#ffd92f",
 		"South America": "#e5c494",
 	};
-let svg, bubble, stroke, label, historyLineBg, historyLine, year, legend;
+let svg,
+	bubble,
+	stroke,
+	label,
+	historyLineBg,
+	historyLine,
+	year,
+	legend,
+	x = scaleLog().clamp(true);
 let width,
 	height,
 	m = 50,
@@ -52,7 +60,12 @@ export function init(selection) {
 
 export function update(data, selectedEntities, setSelectedEntities) {
 	const selectedHistories = data.histories.filter((d) => selectedEntities.indexOf(d[0]) > -1);
-	console.log("update", data);
+	// console.log("update", data, selectedEntities);
+	if (data.horizontalScale === "linear") {
+		x = scaleLinear().clamp(true);
+	} else {
+		x = scaleLog().clamp(true);
+	}
 
 	x.domain(data.extents.gdpExtent).range([margin.left, width - margin.right]);
 	y.domain(data.extents.lifeExtent).range([height - margin.bottom, margin.top]);
@@ -84,7 +97,7 @@ export function update(data, selectedEntities, setSelectedEntities) {
 		.attr("font-weight", 600)
 		.attr("font-size", 12)
 		.text((d) => d);
-	const t = svg.transition().duration(250);
+	const t = svg.transition().duration(750);
 
 	historyLineBg = historyLineBg
 		.data(
@@ -107,7 +120,7 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					.attr("fill", "none")
 					.attr("stroke", "#999")
 					.attr("stroke-dasharray", "1 3"),
-			(update) => update.attr("d", (d) => valueline(d[1].filter((dd) => dd.lifeExpectancy && dd.gdp))),
+			(update) => update.attr("d", (d) => valueline(d[1])),
 			(exit) => exit.remove()
 		);
 
@@ -160,11 +173,53 @@ export function update(data, selectedEntities, setSelectedEntities) {
 	year
 		.selectAll("circle")
 		.data((d) => d[1].filter((dd) => dd.lifeExpectancy && dd.gdp))
-		.join("circle")
-		.attr("cx", (d) => x(d.gdp))
-		.attr("cy", (d) => y(d.lifeExpectancy))
-		.attr("fill", (d) => fillColor[d.continent])
-		.attr("r", 2);
+		.join(
+			(enter) =>
+				enter
+					.append("circle")
+					.attr("cx", (d) => x(d.gdp))
+					.attr("cy", (d) => y(d.lifeExpectancy))
+					.attr("fill", (d) => fillColor[d.continent])
+					.attr("stroke", "transparent")
+					.attr("stroke-width", 2)
+					.attr("r", 2.5)
+					.style("cursor", "pointer")
+					.on("mouseover", (event, d) => {
+						svg
+							.append("text")
+							.attr("id", "yearLabel")
+							.attr("x", 500)
+							.attr("y", 500)
+							.attr("x", x(d.gdp))
+							.attr("y", y(d.lifeExpectancy))
+							.attr("font-size", 10)
+							.style("pointer-events", "none")
+							.text(d.year);
+					})
+					.on("mouseleave", () => {
+						svg.select("#yearLabel").remove();
+					}),
+			(update) =>
+				update
+					.attr("cx", (d) => x(d.gdp))
+					.attr("cy", (d) => y(d.lifeExpectancy))
+					.on("mouseover", (event, d) => {
+						svg
+							.append("text")
+							.attr("id", "yearLabel")
+							.attr("x", 500)
+							.attr("y", 500)
+							.attr("x", x(d.gdp))
+							.attr("y", y(d.lifeExpectancy))
+							.attr("font-size", 10)
+							.style("pointer-events", "none")
+							.text(d.year);
+					})
+					.on("mouseleave", () => {
+						svg.select("#yearLabel").remove();
+					}),
+			(exit) => exit.remove()
+		);
 
 	bubble = bubble
 		.data(data.dataset, (d) => d["Code"])
@@ -200,8 +255,6 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					.call((enter) => enter.transition(t).attr("r", (d) => r(d["Population (historical estimates)"]))),
 			(update) =>
 				update
-					.attr("cx", (d) => x(d.gdp))
-					.attr("cy", (d) => y(d.lifeExpectancy))
 					.attr("r", (d) => r(d["Population (historical estimates)"]))
 					.attr("fill", (d) => {
 						if (selectedEntities.length > 0) {
@@ -221,7 +274,9 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					.on("mouseleave", (event, d) => {
 						label.style("display", (d, i) => handleDisplay(d, i, selectedEntities));
 					})
-					.on("click", (event, d) => handleClick(d, selectedEntities, setSelectedEntities)),
+					.on("click", (event, d) => handleClick(d, selectedEntities, setSelectedEntities))
+					.attr("cx", (d) => x(d.gdp))
+					.attr("cy", (d) => y(d.lifeExpectancy)),
 			(exit) => exit.call((exit) => exit.transition(t).style("opacity", 0).remove())
 		);
 	stroke = stroke
@@ -249,11 +304,10 @@ export function update(data, selectedEntities, setSelectedEntities) {
 						}
 					})
 					.style("opacity", 0.5)
+					.style("pointer-events", "none")
 					.call((enter) => enter.transition(t).attr("r", (d) => r(d["Population (historical estimates)"]))),
 			(update) =>
 				update
-					.attr("cx", (d) => x(d.gdp))
-					.attr("cy", (d) => y(d.lifeExpectancy))
 					.attr("r", (d) => r(d["Population (historical estimates)"]))
 					.attr("stroke", (d) => {
 						if (selectedEntities.length > 0) {
@@ -266,7 +320,9 @@ export function update(data, selectedEntities, setSelectedEntities) {
 						} else {
 							return "white";
 						}
-					}),
+					})
+					.attr("cx", (d) => x(d.gdp))
+					.attr("cy", (d) => y(d.lifeExpectancy)),
 			(exit) => exit.call((exit) => exit.transition(t).style("opacity", 0).remove())
 		);
 
@@ -279,10 +335,11 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					.attr("class", "label")
 					.attr("data-code", (d) => d["Code"])
 					.attr("x", (d) => x(d.gdp))
-					.attr("y", (d) => y(d.lifeExpectancy) - r(d["Population (historical estimates)"]))
+					.attr("y", (d) => y(d.lifeExpectancy) - r(d["Population (historical estimates)"]) - 3)
 					.attr("fill", "#444")
 					.attr("font-size", 12)
 					.attr("text-anchor", "middle")
+					.attr("font-weight", (d) => handleFontWeight(d, selectedEntities))
 					.style("opacity", 0)
 					.text((d) => d["Entity"])
 					.style("pointer-events", "none")
@@ -290,13 +347,15 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					.call((enter) => enter.transition(t).style("opacity", 1)),
 			(update) =>
 				update
-					.attr("x", (d) => x(d.gdp))
-					.attr("y", (d) => y(d.lifeExpectancy) - r(d["Population (historical estimates)"]))
+					.attr("font-weight", (d) => handleFontWeight(d, selectedEntities))
 					.style("display", (d, i) => handleDisplay(d, i, selectedEntities))
-					.raise(),
+					.attr("x", (d) => x(d.gdp))
+					.attr("y", (d) => y(d.lifeExpectancy) - r(d["Population (historical estimates)"]) - 3),
 			(exit) => exit.call((exit) => exit.transition(t).style("opacity", 0).remove())
 		);
-	historyLine.raise();
+	historyLine.lower();
+	historyLineBg.lower();
+	year.raise();
 	bubble.raise();
 	stroke.raise();
 	label.raise();
@@ -310,6 +369,14 @@ function handleDisplay(d, i, selection) {
 		return "block";
 	} else {
 		return "none";
+	}
+}
+
+function handleFontWeight(d, selection) {
+	if (selection.indexOf(d["Entity"]) > -1) {
+		return 600;
+	} else {
+		return 400;
 	}
 }
 
@@ -327,7 +394,7 @@ function drawLegend(selection, data) {
 	const f = format(".2s");
 	const gutter = 25;
 
-	selection.append("text").attr("font-size", 12).attr("font-weight", "600").text("Population");
+	selection.append("text").attr("font-size", 12).attr("font-weight", "600").text("Countries Population");
 
 	let area = selection
 		.append("g")
@@ -389,29 +456,54 @@ function drawLegend(selection, data) {
 	const continentsBBox = selection.select(".continents").node().getBBox();
 
 	selection
+		.append("text")
+		.attr("font-size", 12)
+		.attr("font-weight", "600")
+		.attr("x", areasBBox.width + gutter + continentsBBox.width + gutter)
+		.text("Historical Data");
+
+	selection
 		.append("line")
 		.attr("x1", 0)
 		.attr("y1", 0)
-		.attr("x2", 20)
+		.attr("x2", 50)
 		.attr("y2", 0)
 		.attr("fill", "none")
 		.attr("stroke", "#333")
-		.attr("stroke-width", "2")
-		.attr("stroke-dasharray", "1 3")
+		.attr("stroke-width", "1")
 		.attr("transform", `translate(${areasBBox.width + gutter + continentsBBox.width + gutter}, ${0.5 * gutter})`);
 
 	selection
 		.append("text")
 		.attr("font-size", 12)
 		.attr("x", areasBBox.width + gutter + continentsBBox.width + gutter)
-		.attr("y", 1.5 * gutter)
-		.text("No historical data");
+		.attr("y", 1.25 * gutter)
+		.text("Evolution");
+
+	selection
+		.append("line")
+		.attr("x1", 0)
+		.attr("y1", 0)
+		.attr("x2", 50)
+		.attr("y2", 0)
+		.attr("fill", "none")
+		.attr("stroke", "#333")
+		.attr("stroke-width", "1")
+		.attr("stroke-dasharray", "1 3")
+		.attr("transform", `translate(${areasBBox.width + gutter + continentsBBox.width + gutter}, ${2.5 * gutter})`);
+
+	selection
+		.append("text")
+		.attr("font-size", 12)
+		.attr("x", areasBBox.width + gutter + continentsBBox.width + gutter)
+		.attr("y", 3.25 * gutter)
+		.text("Gap in data");
 
 	selection
 		.append("text")
 		.attr("font-size", 12)
 		.attr("y", areasBBox.height + 1.5 * gutter)
-		.text("Year by year, elements appear according to availability of data.");
+		.text("Countries appear according to availability of data (year by year).");
 
 	const legendBBox = selection.node().getBBox();
 	legend.attr(
