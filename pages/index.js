@@ -214,6 +214,7 @@ export default function Home() {
 									</li>
 									<li>Use a searchbox to select countries</li>
 									<li>Improve the visual and UI design (typeface, color palette, ui appearence)</li>
+									<li>Add alert on mobile to invite visiting with a bigger screen.</li>
 									<li>Bug hunting</li>
 								</ul>
 								<p className="fst-italic">Data Visualization Challenge for Our World in Data. November 2022</p>
