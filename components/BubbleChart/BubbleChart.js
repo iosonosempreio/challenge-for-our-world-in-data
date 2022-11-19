@@ -9,14 +9,13 @@ export default function BubbleChart({ data, selectedYear, selectedEntities, setS
 		init(select(svgEl.current));
 	}, []);
 	useEffect(() => {
-		update(data, selectedEntities, setSelectedEntities)
+		update(data, selectedEntities, setSelectedEntities);
 	}, [data, selectedYear, selectedEntities]);
 	return (
 		<svg ref={svgEl} className={classNames(styles.bubbleChartSVG)}>
-			<g className="xAxis"/>
-			<g className="yAxis"/>
-			<g className="bubbles"/>
-			<g className="legend"/>
+			<g className="xAxis" />
+			<g className="yAxis" />
+			<g className="bubbles" />
 		</svg>
 	);
 }

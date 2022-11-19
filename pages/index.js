@@ -120,6 +120,7 @@ export default function Home() {
 		const _selectedContinents = [...selectedContinents];
 		_selectedContinents.find((c) => c.label === selection.label).active = selection.active;
 		setSelectedContinents(_selectedContinents);
+		setSelectedEntities([]);
 	};
 
 	return (
@@ -129,18 +130,59 @@ export default function Home() {
 			</Head>
 			<Container>
 				<Row>
-					<Col className="mb-3">
-						<h1 className={classNames()}>Human progress from 1810 to 2018</h1>
+					<Col className="mb-2">
+						<h1 className={classNames("fw-bolder", "mt-4", "mb-2")}>Human progress from 1810 to 2018</h1>
 						<p>
-							Every circle represents a country. <BsHandIndexThumb /> click on them to see historical evolution of their
-							wealth.
+							Every circle represents a country.
+							<br />
+							<BsHandIndexThumb /> Click to see historical evolution of their wealth.
 						</p>
 					</Col>
 				</Row>
 				{data && (
 					<>
-						<Row>
-							<Col className="mb-3" style={{ height: "70vh" }}>
+						<Row className="mb-4">
+							<Col md="4" className="d-flex flex-wrap">
+								<h6 className="me-3 d-block fw-bold">Selected Continents</h6>
+								<div className="d-flex flex-wrap flex-row">
+									{selectedContinents.map((d) => (
+										<Form.Check
+											key={d.label}
+											className="me-3"
+											type="checkbox"
+											id={`continent-${d.label}`}
+											label={`${d.label}`}
+											defaultChecked={d.active}
+											disabled={selectedContinents.filter((d) => d.active).length === 1 && d.active}
+											onChange={() => handleContinentsSelection(d)}
+										/>
+									))}
+								</div>
+							</Col>
+							<Col md="4" className="mb-3">
+								<h6 className="me-3 d-block fw-bold">Selected Year: {selectedYear}</h6>
+								<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
+							</Col>
+							<Col md="4" className="d-flex flex-wrap flex-column">
+								<h6 className="me-3 d-block fw-bold">Horizontal scale</h6>
+								<div className="d-flex flex-row">
+									{["linear", "log"].map((d) => (
+										<Form.Check
+											key={d}
+											className="me-3"
+											label={d}
+											name="horizontalScaleRadio"
+											type="radio"
+											id={`x-scale-switch`}
+											defaultChecked={d === horizontalScale}
+											onChange={() => setHorizontalScale(d)}
+										/>
+									))}
+								</div>
+							</Col>
+						</Row>
+						<Row className="mb-3">
+							<Col className="" style={{ height: "70vh" }}>
 								<BubbleChart
 									data={data}
 									selectedYear={selectedYear}
@@ -150,64 +192,29 @@ export default function Home() {
 							</Col>
 						</Row>
 						<Row>
-							<Col sm="12" className="mb-2">
-								<h4>Filter continents or select a year</h4>
-							</Col>
-							<Col sm="12" className="mb-3">
-								<RangeInput extent={data.extents.timeExtent} value={selectedYear} setValue={setSelectedYear} />
-							</Col>
-							<Col sm="12" className="mb-5 d-flex flex-wrap">
-								{selectedContinents.map((d) => (
-									<Form.Check
-										key={d.label}
-										className="me-3"
-										type="checkbox"
-										id={`continent-${d.label}`}
-										label={`${d.label}`}
-										defaultChecked={d.active}
-										onChange={() => handleContinentsSelection(d)}
-									/>
-								))}
-							</Col>
-							<Col sm="12" className="mb-5 d-flex flex-wrap">
-								<p className="me-3">Horizontal scale: </p>
-								{["linear", "log"].map((d) => (
-									<Form.Check
-										key={d}
-										className="me-3"
-										label={d}
-										name="horizontalScaleRadio"
-										type="radio"
-										id={`x-scale-switch`}
-										defaultChecked={d === horizontalScale}
-										onChange={() => setHorizontalScale(d)}
-									/>
-								))}
-							</Col>
-						</Row>
-						<Row>
 							<Col>
+								<h4>Data sources</h4>
+								<ul className="mb-3">
+									{sources.map((source) => (
+										<li key={source.label}>
+											<p className="mb-0">
+												<span className="fw-bold">{source.label}</span>: {source.description}{" "}
+												<a href={source.url}>(link)</a>
+											</p>
+										</li>
+									))}
+								</ul>
+
 								<h4>Roadmap</h4>
-								<ul className="mb-5">
+								<ul className="mb-3">
 									<li>Animate the visualization year by year (use d3.timer())</li>
 									<li>
 										Semantic zoom to better distinguish elements (explained{" "}
 										<a href="https://observablehq.com/@john-guerra/svg-semantic-zoom">here</a>)
 									</li>
-									<li>Add a searchbox</li>
-									<li>Improve the visual design (select typeface)</li>
-									<li>Improve the visual design (select typeface)</li>
-								</ul>
-								<h4>Data sources</h4>
-								<ul className="mb-5">
-									{sources.map((source) => (
-										<li key={source.label}>
-											<h6>{source.label}</h6>
-											<p>
-												{source.description} <a href={source.url}>(link)</a>
-											</p>
-										</li>
-									))}
+									<li>Use a searchbox to select countries</li>
+									<li>Improve the visual and UI design (typeface, color palette, ui appearence)</li>
+									<li>Bug hunting</li>
 								</ul>
 								<p className="fst-italic">Data Visualization Challenge for Our World in Data. November 2022</p>
 							</Col>

@@ -10,9 +10,11 @@ import {
 	curveCardinal,
 	color,
 	format,
+	select,
 } from "d3";
 const y = scaleLinear().clamp(true),
 	r = scaleSqrt(),
+	f = format(".2s"),
 	fillColor = {
 		Asia: "#66c2a5",
 		Europe: "#fc8d62",
@@ -30,6 +32,9 @@ let svg,
 	historyLine,
 	year,
 	legend,
+	reset,
+	hoverX,
+	hoverY,
 	x = scaleLog().clamp(true);
 let width,
 	height,
@@ -42,20 +47,60 @@ const valueline = line()
 	.x((d) => x(d.gdp))
 	.y((d) => y(d.lifeExpectancy));
 
-export function init(selection) {
-	// console.log("init");
+export function init(selection, setSelectedEntities) {
+	console.log("init", selection, setSelectedEntities);
 	svg = selection;
 	const bbox = svg.node().getBoundingClientRect();
 	width = bbox.width; // - margin.left - margin.right;
 	height = bbox.height; // - margin.top - margin.bottom;
 	svg.select(".bubbles").selectAll("*").remove();
+	reset = svg.select(".bubbles").append("g");
 	historyLineBg = svg.select(".bubbles").selectAll(".historyLineBg");
 	historyLine = svg.select(".bubbles").selectAll(".historyLine");
 	year = svg.select(".bubbles").selectAll(".year");
 	bubble = svg.select(".bubbles").selectAll(".bubble");
 	stroke = svg.select(".bubbles").selectAll(".stroke");
 	label = svg.select(".bubbles").selectAll(".label");
-	legend = svg.select(".legend");
+	legend = svg.select(".bubbles").append("g").attr("class", "legend");
+
+	hoverX = svg.select(".bubbles").append("g").classed("hover-x", true);
+	hoverX.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 6).attr("stroke", "black");
+	hoverX
+		.append("text")
+		.attr("x", 0)
+		.attr("y", 16)
+		.attr("stroke", "white")
+		.attr("stroke-width", 3)
+		.attr("text-anchor", "middle")
+		.attr("font-size", "12")
+		.attr("font-weight", "bold");
+	hoverX
+		.append("text")
+		.attr("x", 0)
+		.attr("y", 16)
+		.attr("fill", "black")
+		.attr("text-anchor", "middle")
+		.attr("font-size", "12")
+		.attr("font-weight", "bold");
+	hoverY = svg.select(".bubbles").append("g").attr("fill", "black").classed("hover-y", true);
+	hoverY.append("line").attr("x1", 0).attr("y1", 0).attr("x2", -6).attr("y2", 0).attr("stroke", "black");
+	hoverY
+		.append("text")
+		.attr("x", -8)
+		.attr("y", 4)
+		.attr("stroke", "white")
+		.attr("stroke-width", 3)
+		.attr("text-anchor", "end")
+		.attr("font-size", "12")
+		.attr("font-weight", "bold");
+	hoverY
+		.append("text")
+		.attr("x", -8)
+		.attr("y", 4)
+		.attr("fill", "black")
+		.attr("text-anchor", "end")
+		.attr("font-size", "12")
+		.attr("font-weight", "bold");
 }
 
 export function update(data, selectedEntities, setSelectedEntities) {
@@ -66,7 +111,23 @@ export function update(data, selectedEntities, setSelectedEntities) {
 	} else {
 		x = scaleLog().clamp(true);
 	}
-
+	reset.selectAll("*").remove();
+	reset
+		.append("rect")
+		.attr("class", "reset-selection")
+		.attr("width", width)
+		.attr("height", height)
+		.attr("fill", "transparent");
+	reset
+		.append("text")
+		.attr("x", width - margin.right)
+		.attr("y", margin.top / 2)
+		.attr("text-anchor", "end")
+		.attr("font-size", 12)
+		.attr("fill", "#999")
+		.attr("display", selectedEntities.length > 0 ? "block" : "none")
+		.text("Click ont the background to reset the selection");
+	reset.on("click", () => setSelectedEntities([]));
 	x.domain(data.extents.gdpExtent).range([margin.left, width - margin.right]);
 	y.domain(data.extents.lifeExtent).range([height - margin.bottom, margin.top]);
 	r.domain([0, data.extents.populationExtent[1]]).range([3, m]);
@@ -247,9 +308,13 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					})
 					.on("mouseover", (event, d) => {
 						label.filter((dd) => dd["Entity"] === d["Entity"]).style("display", "block");
+						handleHover(d);
+						drawLegend(legend, data, d);
 					})
 					.on("mouseleave", (event, d) => {
 						label.style("display", (d, i) => handleDisplay(d, i, selectedEntities));
+						handleHover();
+						drawLegend(legend, data);
 					})
 					.on("click", (event, d) => handleClick(d, selectedEntities, setSelectedEntities))
 					.call((enter) => enter.transition(t).attr("r", (d) => r(d["Population (historical estimates)"]))),
@@ -270,9 +335,13 @@ export function update(data, selectedEntities, setSelectedEntities) {
 					})
 					.on("mouseover", (event, d) => {
 						label.filter((dd) => dd["Entity"] === d["Entity"]).style("display", "block");
+						handleHover(d);
+						drawLegend(legend, data, d);
 					})
 					.on("mouseleave", (event, d) => {
 						label.style("display", (d, i) => handleDisplay(d, i, selectedEntities));
+						handleHover();
+						drawLegend(legend, data);
 					})
 					.on("click", (event, d) => handleClick(d, selectedEntities, setSelectedEntities))
 					.attr("cx", (d) => x(d.gdp))
@@ -355,12 +424,14 @@ export function update(data, selectedEntities, setSelectedEntities) {
 		);
 	historyLine.lower();
 	historyLineBg.lower();
+	reset.lower();
 	year.raise();
 	bubble.raise();
 	stroke.raise();
 	label.raise();
 	legend.raise();
-	legend.selectAll("*").remove();
+	hoverX.raise();
+	hoverY.raise();
 	drawLegend(legend, data);
 }
 
@@ -390,17 +461,38 @@ function handleClick(d, selected, setSelected) {
 	}
 }
 
-function drawLegend(selection, data) {
-	const f = format(".2s");
-	const gutter = 25;
+function handleHover(d) {
+	if (d) {
+		hoverX.attr("display", "block");
+		hoverX.attr("transform", `translate(${x(d.gdp)}, ${y(y.domain()[0])})`);
+		hoverX.selectAll("text").text(f(d.gdp));
 
+		hoverY.attr("display", "block");
+		hoverY.attr("transform", `translate(${x(x.domain()[0])}, ${y(d.lifeExpectancy)})`);
+		hoverY.selectAll("text").text(f(d.lifeExpectancy));
+	} else {
+		hoverX.attr("display", "none");
+		hoverY.attr("display", "none");
+	}
+}
+
+function drawLegend(selection, data, hover) {
+	const gutter = 25;
+	const areasBBoxWidth = 135;
+	selection.selectAll("*").remove();
 	selection.append("text").attr("font-size", 12).attr("font-weight", "600").text("Countries Population");
 
 	let area = selection
 		.append("g")
 		.attr("class", "areas")
 		.selectAll(".area")
-		.data([data.extents.populationExtent[1], 100000])
+		.data(() => {
+			if (hover) {
+				return [data.extents.populationExtent[1], 100000, +hover["Population (historical estimates)"]];
+			} else {
+				return [data.extents.populationExtent[1], 100000];
+			}
+		})
 		.join("g")
 		.attr("class", "area")
 		.attr(
@@ -411,16 +503,27 @@ function drawLegend(selection, data) {
 	area
 		.append("circle")
 		.attr("r", (d) => r(d))
-		.attr("fill", "white")
+		.attr("fill", (d, i) => (i === 0 ? "white" : "transparent"))
 		.attr("stroke", "black")
 		.attr("cy", (d) => -r(d));
 
 	area
 		.append("text")
-		.attr("y", (d, i) => (i === 1 ? 0 : -r(d) * 2 + 11))
-		.attr("x", (d) => r(data.extents.populationExtent[1]))
+		.attr("y", (d) => -r(d) * 2 + 6)
+		.attr("x", (d) => 5 + r(data.extents.populationExtent[1]))
 		.attr("font-size", 12)
-		.text((d) => f(d));
+		.attr("stroke-width", 4)
+		.attr("stroke", "white")
+		.attr("font-weight", (d, i) => (i === 2 ? "bold" : "regular"))
+		.text((d) => f(d).replace("G", "B"));
+
+	area
+		.append("text")
+		.attr("y", (d) => -r(d) * 2 + 6)
+		.attr("x", (d) => 5 + r(data.extents.populationExtent[1]))
+		.attr("font-size", 12)
+		.attr("font-weight", (d, i) => (i === 2 ? "bold" : "regular"))
+		.text((d) => f(d).replace("G", "B"));
 
 	const areasBBox = selection.select(".areas").node().getBBox();
 
@@ -428,7 +531,7 @@ function drawLegend(selection, data) {
 		.append("text")
 		.attr("font-size", 12)
 		.attr("font-weight", "600")
-		.attr("x", areasBBox.width + gutter)
+		.attr("x", areasBBoxWidth + gutter)
 		.text("Continents");
 
 	let continent = selection
@@ -438,7 +541,7 @@ function drawLegend(selection, data) {
 		.data(data.extents.continents, (d, i) => i)
 		.join("g")
 		.attr("class", "continent")
-		.attr("transform", (d, i) => `translate(${areasBBox.width + gutter}, ${i * 15 + 10})`);
+		.attr("transform", (d, i) => `translate(${areasBBoxWidth + gutter}, ${i * 15 + 10})`);
 
 	continent
 		.append("rect")
@@ -459,7 +562,7 @@ function drawLegend(selection, data) {
 		.append("text")
 		.attr("font-size", 12)
 		.attr("font-weight", "600")
-		.attr("x", areasBBox.width + gutter + continentsBBox.width + gutter)
+		.attr("x", areasBBoxWidth + gutter + continentsBBox.width + gutter)
 		.text("Historical Data");
 
 	selection
@@ -471,12 +574,12 @@ function drawLegend(selection, data) {
 		.attr("fill", "none")
 		.attr("stroke", "#333")
 		.attr("stroke-width", "1")
-		.attr("transform", `translate(${areasBBox.width + gutter + continentsBBox.width + gutter}, ${0.5 * gutter})`);
+		.attr("transform", `translate(${areasBBoxWidth + gutter + continentsBBox.width + gutter}, ${0.5 * gutter})`);
 
 	selection
 		.append("text")
 		.attr("font-size", 12)
-		.attr("x", areasBBox.width + gutter + continentsBBox.width + gutter)
+		.attr("x", areasBBoxWidth + gutter + continentsBBox.width + gutter)
 		.attr("y", 1.25 * gutter)
 		.text("Evolution");
 
@@ -490,12 +593,12 @@ function drawLegend(selection, data) {
 		.attr("stroke", "#333")
 		.attr("stroke-width", "1")
 		.attr("stroke-dasharray", "1 3")
-		.attr("transform", `translate(${areasBBox.width + gutter + continentsBBox.width + gutter}, ${2.5 * gutter})`);
+		.attr("transform", `translate(${areasBBoxWidth + gutter + continentsBBox.width + gutter}, ${2.5 * gutter})`);
 
 	selection
 		.append("text")
 		.attr("font-size", 12)
-		.attr("x", areasBBox.width + gutter + continentsBBox.width + gutter)
+		.attr("x", areasBBoxWidth + gutter + continentsBBox.width + gutter)
 		.attr("y", 3.25 * gutter)
 		.text("Gap in data");
 
